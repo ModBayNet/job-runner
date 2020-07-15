@@ -1,9 +1,0 @@
-name: "helm-kubectl container"
-description: "Run code inside helm-kubectl container"
-inputs:
-  run:
-    description: "code to run"
-    required: true
-runs:
-  using: "docker"
-  image: "docker://lwolf/helm-kubectl-docker:v1.17.8-v3.2.4"

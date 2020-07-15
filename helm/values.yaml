@@ -9,7 +9,7 @@ selectorLabels:
   - area: backend
 
 image:
-  repository: hub.docker.com/modbay/job-runner
+  repository: docker.io/modbay/job-runner
   tag: "latest"
   pullPolicy: IfNotPresent
 
