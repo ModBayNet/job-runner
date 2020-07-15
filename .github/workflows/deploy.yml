@@ -1,0 +1,41 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build and push Docker image
+        run: |
+          docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD https://hub.docker.com
+          docker info
+          docker pull $CI_REGISTRY_IMAGE:latest || true
+          docker build --cache-from $CI_REGISTRY_IMAGE:latest --build-arg GIT_COMMIT=$CI_COMMIT_SHA --tag $CI_REGISTRY_IMAGE:latest .
+          docker tag $CI_REGISTRY_IMAGE:latest $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+          docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+          docker push $CI_REGISTRY_IMAGE:latest
+        env:
+          CI_REGISTRY_IMAGE: modbay/job-runner
+          CI_COMMIT_SHA: $GITHUB_SHA
+          CI_REGISTRY_USER: ${{ secrets.CI_REGISTRY_USER }}
+          CI_REGISTRY_PASSWORD: ${{ secrets.CI_REGISTRY_PASSWORD }}
+      - name: Test
+        run: |
+          echo TODO
+      - name: Install Helm
+        uses: ./.github/actions/helm-kubectl-docker
+        run: |
+          mkdir -p /etc/deploy
+          echo ${KUBE_CONFIG_BASE64} | base64 -d > ${KUBECONFIG}
+          cd helm
+          helm dependency build
+          export APP_VERSION="$(grep "appVersion" Chart.yaml | cut -d" " -f2)"
+          export DEPLOYS=$(helm ls | tail -n +2 | awk '{printf $1}{print $NF}' | grep "$RELEASE_NAME$VERSION" | wc -l)
+          if [ ${DEPLOYS}  -eq 0 ]; then helm install ${RELEASE_NAME} . --namespace=default; else helm upgrade ${RELEASE_NAME} . --namespace=default; fi
+        env:
+          KUBE_CONFIG_BASE64: ${{ secrets.KUBE_CONFIG_BASE64 }}

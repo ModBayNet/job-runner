@@ -1,0 +1,12 @@
+ 
+# This is requirements.txt equivalent
+
+# Base
+ruamel.yaml
+aioredis
+uvloop
+sentry_sdk
+arpq==0.1.1
+
+# Running jobs
+aiosmtplib

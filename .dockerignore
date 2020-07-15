@@ -1,0 +1,25 @@
+# recursive folders
+**/__pycache__
+**/.mypy_cache
+
+# extension patterns
+**/*.yaml
+**/*.yml
+*.in
+
+# unique files
+.gitignore
+Dockerfile
+.dockerignore
+.flake8
+.pre-commit-config.yaml
+LICENSE
+mypy.ini
+pyproject.toml
+README.md
+
+# folders
+.git
+.vscode
+config
+helm

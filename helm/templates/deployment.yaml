@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "..fullname" . }}
+  labels:
+    {{- include "..labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      {{- include "..selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "..fullname" . }}
+        {{- include "..selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: main
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+          # generic
+            - name: MODBAY_MAIL_LOGIN
+              valueFrom:
+                secretKeyRef:
+                  name: job-runner-generic
+                  key: mail_login
+            - name: MODBAY_MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: job-runner-generic
+                  key: mail_password
+            # redis
+            - name: MODBAY_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: password
+            # sentry
+            - name: MODBAY_SENTRY_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: job-runner-sentry-credentials
+                  key: dsn
+          volumeMounts:
+            - name: config
+              mountPath: /code/config.yml
+              # prevent directory override
+              subPath: config.yml
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "..fullname" . }}

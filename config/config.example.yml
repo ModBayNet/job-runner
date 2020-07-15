@@ -1,0 +1,15 @@
+mail:
+  server: mail.modbay.net
+  from: noreply@modbay.net
+  login: !env MODBAY_MAIL_LOGIN
+  password: !env MODBAY_MAIL_PASSWORD
+
+redis:
+  host: 127.0.0.1
+  port: 6379
+  db: 0
+  password: !env MODBAY_REDIS_PASSWORD
+
+sentry:
+  enabled: false
+  dsn: !env MODBAY_SENTRY_DSN

@@ -1,0 +1,24 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ include "..fullname" . }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-1"
+data:
+  config.yml: |
+    mail:
+      server: mail.modbay.net
+      from: noreply@modbay.net
+      login: !env MODBAY_MAIL_LOGIN
+      password: !env MODBAY_MAIL_PASSWORD
+
+    redis:
+      host: redis
+      port: 6379
+      db: 0
+      password: !env MODBAY_REDIS_PASSWORD
+
+    sentry:
+      enabled: false
+      dsn: !env MODBAY_SENTRY_DSN

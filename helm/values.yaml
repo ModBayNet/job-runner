@@ -1,0 +1,39 @@
+replicaCount: 2
+
+labels:
+  - type: job-runner
+  - area: backend
+
+selectorLabels:
+  - type: job-runner
+  - area: backend
+
+image:
+  repository: hub.docker.com/modbay/job-runner
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: NodePort
+  nodePort: 30080
+
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
