@@ -7,6 +7,9 @@ metadata:
     "helm.sh/hook-weight": "-1"
 data:
   config.yml: |
+    logging:
+      level: warning
+
     mail:
       server: mail.modbay.net
       from: noreply@modbay.net

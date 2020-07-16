@@ -31,11 +31,11 @@ log = logging.getLogger(__name__)
 
 
 if __name__ == "__main__":
-    setup_logger()
+    config = Config(CONFIG_FORMAT)
+    setup_logger(config)
 
     log.info(f"running on version {os.environ.get('GIT_COMMIT', 'UNSET')}")
 
-    config = Config(CONFIG_FORMAT)
     if config["sentry"]["enabled"]:
         log.info("initializing sentry")
         sentry_sdk.init(

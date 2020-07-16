@@ -23,7 +23,7 @@ parser.add_argument(
     "--verbosity",
     "-v",
     choices=["critical", "error", "warning", "info", "debug"],
-    default="info",
+    default=None,
     help="Verbosity level. WARNING: debug level may expose credentials",
 )
 

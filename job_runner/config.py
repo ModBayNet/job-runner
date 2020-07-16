@@ -29,6 +29,7 @@ log = logging.getLogger(__name__)
 DEFAULT_FILENAME = "config.yml"
 
 CONFIG_FORMAT = {
+    "logging": {"level": str},
     "mail": {"server": str, "from": str, "login": str, "password": str},
     "redis": {"host": str, "port": int, "db": int, "password": str},
     "sentry": {"enabled": bool, "dsn": str},

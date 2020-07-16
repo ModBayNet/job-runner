@@ -17,6 +17,7 @@
 import logging.config
 
 from .cli import args
+from .config import Config
 
 LEVEL_TO_COLOR_VALUE = {
     "INFO": "32",  # green
@@ -44,17 +45,20 @@ class ColorFormatter(logging.Formatter):
         return f"{COLOR_START}{color_value}m{formatted}{COLOR_RESET}"
 
 
-def logging_name_to_level(string: str) -> int:
-    logging_level = logging.getLevelName(string.upper())
+def get_level(config: Config) -> int:
+    if args.verbosity is not None:
+        level = logging.getLevelName(args.verbosity.upper())
+    else:
+        level = logging.getLevelName(config["logging"]["level"].upper())
 
-    if isinstance(logging_level, int):
-        return logging_level
+    if isinstance(level, int):
+        return level
 
-    raise ValueError(f"Unknown logging level passed: {logging_level}")
+    raise ValueError(f"Unknown logging level passed: {level}")
 
 
-def setup() -> None:
-    level = logging_name_to_level(args.verbosity)
+def setup(config: Config) -> None:
+    level = get_level(config)
 
     LOGGING_CONFIG = {
         "version": 1,
