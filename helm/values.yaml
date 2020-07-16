@@ -24,7 +24,7 @@ securityContext:
     - ALL
   readOnlyRootFilesystem: true
   runAsNonRoot: true
-  # runAsUser: 1000
+  runAsUser: 1000
 
 service:
   type: NodePort
