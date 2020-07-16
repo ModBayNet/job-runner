@@ -8,7 +8,7 @@ echo ${KUBE_CONFIG_BASE64} | base64 -d >${KUBECONFIG}
 cd /code/helm
 helm dependency build
 
-export RELEASE_NAME=modbay-job-runner
+export RELEASE_NAME=job-runner
 export DEPLOYS=$(helm ls | tail -n +2 | awk '{printf $1}{print $NF}' | grep "$RELEASE_NAME" | wc -l)
 
 if [ ${DEPLOYS} -eq 0 ]; then
