@@ -145,7 +145,11 @@ class SendLocalizedEmailJob(Job):
     async def run(self, ctx: Context) -> None:
         confirmation_token = token_urlsafe(self.CONFIRMATION_TOKEN_BYTES)
         await ctx.redis.execute(
-            "SET", confirmation_token, "EX", self.CONFIRMATION_TOKEN_TTL
+            "SET",
+            confirmation_token,
+            self._user_id.hex,
+            "EX",
+            self.CONFIRMATION_TOKEN_TTL,
         )
 
         # hardcoded, probably bad
