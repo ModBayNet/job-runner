@@ -23,6 +23,7 @@ from arpq import MessageQueue
 
 from .job import Job, UnknownJobError, MalformedPayloadError
 from .config import Config
+from .context import Context
 
 log = logging.getLogger(__name__)
 
@@ -61,4 +62,4 @@ class JobRunner:
                     )
 
                 log.debug("scheduling job %s", job.type)
-                await job.run(self._config)
+                await job.run(Context(self._config, self._redis))

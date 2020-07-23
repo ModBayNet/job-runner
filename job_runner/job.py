@@ -18,14 +18,16 @@ from __future__ import annotations
 
 import enum
 import time
+import uuid
 
 from typing import Any, Dict, Type, Tuple
+from secrets import token_urlsafe
 from email.message import EmailMessage
 
 from arpq import Message
 from aiosmtplib import SMTP
 
-from .config import Config
+from .context import Context
 
 PRIORITY_LOW = 1
 PRIORITY_MEDIUM = 10
@@ -101,7 +103,7 @@ class Job(metaclass=JobMeta):
     def set_data(self, **kwargs: Any) -> None:
         pass
 
-    async def run(self, config: Config) -> None:
+    async def run(self, ctx: Context) -> None:
         raise NotImplementedError
 
     @property
@@ -123,31 +125,44 @@ class Job(metaclass=JobMeta):
 class SendLocalizedEmailJob(Job):
     job_type = JobType.SEND_LOCALIZED_EMAIL
 
+    CONFIRMATION_TOKEN_BYTES = 20
+    CONFIRMATION_TOKEN_TTL = 5 * 24 * 60 * 60  # 5 days
+
     def set_data(  # type: ignore
-        self, email_type: int, language: str, to: str, url: str, **kwargs: Any
+        self, email_type: int, language: str, to: str, user_id: str, **kwargs: Any
     ) -> None:
         self._email_type = EmailType(email_type)
         self._to = to
-        self._url = url
+        self._user_id = uuid.UUID(user_id)
 
-    def _fill_message(self, msg: EmailMessage) -> EmailMessage:
+    def _fill_message(self, msg: EmailMessage, url: str) -> EmailMessage:
         if self._email_type is EmailType.EMAIL_CONFIRMATION:
             msg["Subject"] = "TODO: localized subject of: confirmation link"
-            msg.set_content(f"TODO: localized body of: confirmation link: {self._url}")
+            msg.set_content(f"TODO: localized body of: confirmation link: {url}")
 
         return msg
 
-    async def run(self, config: Config) -> None:
+    async def run(self, ctx: Context) -> None:
+        confirmation_token = token_urlsafe(self.CONFIRMATION_TOKEN_BYTES)
+        await ctx.redis.execute(
+            "SET", confirmation_token, "EX", self.CONFIRMATION_TOKEN_TTL
+        )
+
+        # hardcoded, probably bad
+        url = f"https://modbay.net/auth/email/confirm?token={confirmation_token}"
         msg = EmailMessage()
-        msg["From"] = config["mail"]["from"]
+
+        mail_config = ctx.config["mail"]
+
+        msg["From"] = mail_config["from"]
         msg["To"] = self._to
 
-        async with SMTP(config["mail"]["server"], start_tls=True) as server:
+        async with SMTP(mail_config["server"], start_tls=True) as server:
             await server.login(
-                config["mail"]["login"], config["mail"]["password"],
+                mail_config["login"], mail_config["password"],
             )
 
-            await server.send_message(self._fill_message(msg))
+            await server.send_message(self._fill_message(msg, url))
 
 
 class PrintJob(Job):
@@ -156,5 +171,5 @@ class PrintJob(Job):
     def set_data(self, text: str, **kwargs: Any) -> None:  # type: ignore
         self.text = text
 
-    async def run(self, config: Config) -> None:
+    async def run(self, ctx: Context) -> None:
         print(self.text)
