@@ -8,7 +8,7 @@ metadata:
 data:
   config.yml: |
     logging:
-      level: warning
+      level: info
 
     mail:
       server: mail.modbay.net
