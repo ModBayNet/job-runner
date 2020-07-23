@@ -148,7 +148,7 @@ class SendLocalizedEmailJob(Job):
         )
 
         # hardcoded, probably bad
-        url = f"https://modbay.net/auth/email/confirm?token={confirmation_token}"
+        url = f"https://modbay.net/api/v0/auth/email/confirm?token={confirmation_token}"
         msg = EmailMessage()
 
         mail_config = ctx.config["mail"]
