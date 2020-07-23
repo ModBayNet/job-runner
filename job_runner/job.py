@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import enum
 import time
-import uuid
 
 from typing import Any, Dict, Type, Tuple
 from secrets import token_urlsafe
@@ -133,7 +132,7 @@ class SendLocalizedEmailJob(Job):
     ) -> None:
         self._email_type = EmailType(email_type)
         self._to = to
-        self._user_id = uuid.UUID(user_id)
+        self._user_id = user_id
 
     def _fill_message(self, msg: EmailMessage, url: str) -> EmailMessage:
         if self._email_type is EmailType.EMAIL_CONFIRMATION:
@@ -145,11 +144,7 @@ class SendLocalizedEmailJob(Job):
     async def run(self, ctx: Context) -> None:
         confirmation_token = token_urlsafe(self.CONFIRMATION_TOKEN_BYTES)
         await ctx.redis.execute(
-            "SET",
-            confirmation_token,
-            self._user_id.hex,
-            "EX",
-            self.CONFIRMATION_TOKEN_TTL,
+            "SET", confirmation_token, self._user_id, "EX", self.CONFIRMATION_TOKEN_TTL,
         )
 
         # hardcoded, probably bad
