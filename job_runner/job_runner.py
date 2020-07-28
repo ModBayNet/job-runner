@@ -15,7 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import copy
+import asyncio
 import logging
+
+from functools import partial
 
 import aioredis
 
@@ -62,4 +65,10 @@ class JobRunner:
                     )
 
                 log.debug("scheduling job %s", job)
-                await job.run(Context(self._config, self._redis))
+
+                ctx = Context(self._config, self._redis)
+                if job.is_async:
+                    await job.run(ctx)
+                else:
+                    loop = asyncio.get_running_loop()
+                    await loop.run_in_executor(None, partial(job.run, ctx))

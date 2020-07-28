@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import enum
 import time
+import inspect
 
 from typing import Any, Dict, Type
 from secrets import token_urlsafe
@@ -54,22 +55,23 @@ class EmailType(enum.Enum):
 class Job:
     _job_map: Dict[int, Type[Job]] = {}
 
-    def __init_subclass__(
-        cls, job_type: JobType = JobType.UNSSSIGNED, **kwargs: Any
-    ) -> None:
-        super().__init_subclass__(**kwargs)  # type: ignore
+    _is_async: bool
+
+    def __init_subclass__(cls, /, job_type: JobType = JobType.UNSSSIGNED) -> None:
+        super().__init_subclass__()
 
         if job_type != JobType.UNSSSIGNED:
             if job_type.value in cls._job_map:
                 raise TypeError(f"Duplicated job type: {job_type} in {cls}")
 
+            cls._is_async = inspect.iscoroutinefunction(cls.run)
             cls._job_map[job_type.value] = cls
 
     def __init__(
-        self, priority: int, job_type: JobType, created_at: float = None, **kwargs: Any
+        self, priority: int, job_type: JobType, created_at: float, **kwargs: Any
     ):
         self._priority = priority
-        self._created_at = time.time() if created_at is None else created_at
+        self._created_at = created_at
         self._job_type = job_type
 
     @classmethod
@@ -82,7 +84,9 @@ class Job:
             raise UnknownJobError
 
         job = job_cls(
-            priority=msg.priority, job_type=data.get("t"), created_at=data.get("c"),
+            priority=msg.priority,
+            job_type=data["t"],
+            created_at=data.get("c", time.time()),
         )
 
         job.set_data(**data.get("d"))
@@ -92,7 +96,7 @@ class Job:
     def set_data(self, **kwargs: Any) -> None:
         pass
 
-    async def run(self, ctx: Context) -> None:
+    def run(self, ctx: Context) -> None:
         raise NotImplementedError
 
     @property
@@ -106,6 +110,10 @@ class Job:
     @property
     def type(self) -> JobType:
         return self._job_type
+
+    @property
+    def is_async(self) -> bool:
+        return self._is_async
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} type={self.type} priority={self.priority} created_at={self.created_at}>"
@@ -156,5 +164,5 @@ class PrintJob(Job, job_type=JobType.PRINT):
     def set_data(self, text: str, **kwargs: Any) -> None:  # type: ignore
         self.text = text
 
-    async def run(self, ctx: Context) -> None:
+    def run(self, ctx: Context) -> None:
         print(self.text)
