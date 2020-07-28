@@ -61,5 +61,5 @@ class JobRunner:
                         "error pasing job: %s: %s", e.__class__.__name__, str(e)
                     )
 
-                log.debug("scheduling job %s", job.type)
+                log.debug("scheduling job %s", job)
                 await job.run(Context(self._config, self._redis))

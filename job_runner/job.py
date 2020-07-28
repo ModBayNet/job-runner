@@ -19,7 +19,7 @@ from __future__ import annotations
 import enum
 import time
 
-from typing import Any, Dict, Type, Tuple
+from typing import Any, Dict, Type
 from secrets import token_urlsafe
 from email.message import EmailMessage
 
@@ -51,37 +51,26 @@ class EmailType(enum.Enum):
     EMAIL_CONFIRMATION = 0
 
 
-# TODO: use typevar for typing
-class JobMeta(type):
+class Job:
     _job_map: Dict[int, Type[Job]] = {}
 
-    def __init__(cls: type, name: str, bases: Tuple[type, ...], dct: Dict[str, Any]):
-        if not hasattr(cls, "job_type"):
-            raise RuntimeError(f"{name}: does not have job_type property")
+    def __init_subclass__(
+        cls, job_type: JobType = JobType.UNSSSIGNED, **kwargs: Any
+    ) -> None:
+        super().__init_subclass__(**kwargs)  # type: ignore
 
-        job_type = cls.job_type  # type: ignore
-        job_map = cls._job_map  # type: ignore
         if job_type != JobType.UNSSSIGNED:
-            if job_type in job_map:
-                raise TypeError(f"Duplicated job type: {job_type} in {name}")
+            if job_type.value in cls._job_map:
+                raise TypeError(f"Duplicated job type: {job_type} in {cls}")
 
-            job_map[job_type.value] = cls
+            cls._job_map[job_type.value] = cls
 
-    @classmethod
-    def get_job_by_type(mcls, job_type: int) -> Type[Job]:
-        if job_type not in mcls._job_map:
-            raise UnknownJobError
-
-        return mcls._job_map[job_type]
-
-
-class Job(metaclass=JobMeta):
-    job_type = JobType.UNSSSIGNED
-
-    def __init__(self, priority: int, created_at: float = None, **kwargs: Any):
+    def __init__(
+        self, priority: int, job_type: JobType, created_at: float = None, **kwargs: Any
+    ):
         self._priority = priority
-
         self._created_at = time.time() if created_at is None else created_at
+        self._job_type = job_type
 
     @classmethod
     def from_message(cls, msg: Message) -> Job:
@@ -89,7 +78,8 @@ class Job(metaclass=JobMeta):
         if "t" not in data:
             raise MalformedPayloadError
 
-        job_cls = type(cls).get_job_by_type(data["t"])
+        if (job_cls := cls._job_map.get(data["t"])) is None:
+            raise UnknownJobError
 
         job = job_cls(
             priority=msg.priority, job_type=data.get("t"), created_at=data.get("c"),
@@ -110,20 +100,18 @@ class Job(metaclass=JobMeta):
         return self._priority
 
     @property
-    def type(self) -> JobType:
-        return self.job_type
-
-    @property
     def created_at(self) -> float:
         return self._created_at
+
+    @property
+    def type(self) -> JobType:
+        return self._job_type
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} type={self.type} priority={self.priority} created_at={self.created_at}>"
 
 
-class SendLocalizedEmailJob(Job):
-    job_type = JobType.SEND_LOCALIZED_EMAIL
-
+class SendLocalizedEmailJob(Job, job_type=JobType.SEND_LOCALIZED_EMAIL):
     CONFIRMATION_TOKEN_BYTES = 20
     CONFIRMATION_TOKEN_TTL = 5 * 24 * 60 * 60  # 5 days
 
@@ -164,9 +152,7 @@ class SendLocalizedEmailJob(Job):
             await server.send_message(self._fill_message(msg, url))
 
 
-class PrintJob(Job):
-    job_type = JobType.PRINT
-
+class PrintJob(Job, job_type=JobType.PRINT):
     def set_data(self, text: str, **kwargs: Any) -> None:  # type: ignore
         self.text = text
 
