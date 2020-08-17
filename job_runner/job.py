@@ -147,7 +147,7 @@ class SendLocalizedEmailJob(Job, job_type=JobType.SEND_LOCALIZED_EMAIL):
         )
 
         # hardcoded, probably bad
-        url = f"https://modbay.net/api/v0/auth/email/confirm/{confirmation_token}"
+        url = f"https://modbay.net/auth/email/confirm/{confirmation_token}"
 
         msg["Subject"] = "TODO: localized subject of: email confirmation"
         msg.set_content(f"TODO: localized body of: email confirmation: {url}")
