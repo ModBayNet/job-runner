@@ -68,7 +68,7 @@ class JobRunner:
 
                 ctx = Context(self._config, self._redis)
                 if job.is_async:
-                    await job.run(ctx)
+                    await job.run(ctx)  # type: ignore
                 else:
                     loop = asyncio.get_running_loop()
                     await loop.run_in_executor(None, partial(job.run, ctx))

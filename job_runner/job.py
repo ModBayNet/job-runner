@@ -20,7 +20,7 @@ import enum
 import time
 import inspect
 
-from typing import Any, Dict, Type
+from typing import Any, Dict, Type, Awaitable, Optional
 from secrets import token_urlsafe
 from email.message import EmailMessage
 
@@ -50,6 +50,7 @@ class JobType(enum.Enum):
 
 class EmailType(enum.Enum):
     EMAIL_CONFIRMATION = 0
+    SINGLE_USE_PASSWORD_EMAIL = 1
 
 
 class Job:
@@ -96,7 +97,7 @@ class Job:
     def set_data(self, **kwargs: Any) -> None:
         pass
 
-    def run(self, ctx: Context) -> None:
+    def run(self, ctx: Context) -> Optional[Awaitable[None]]:
         raise NotImplementedError
 
     @property
@@ -123,28 +124,64 @@ class SendLocalizedEmailJob(Job, job_type=JobType.SEND_LOCALIZED_EMAIL):
     CONFIRMATION_TOKEN_BYTES = 20
     CONFIRMATION_TOKEN_TTL = 5 * 24 * 60 * 60  # 5 days
 
+    SINGLE_USE_PASSWORD_BYTES = 15
+    SINGLE_USE_PASSWORD_TTL = 5 * 24 * 60 * 60  # 5 days
+
     def set_data(  # type: ignore
-        self, email_type: int, language: str, to: str, user_id: str, **kwargs: Any
+        self, email_type: int, language: str, to: str, user_id: bytes, **kwargs: Any
     ) -> None:
         self._email_type = EmailType(email_type)
         self._to = to
         self._user_id = user_id
 
-    def _fill_message(self, msg: EmailMessage, url: str) -> EmailMessage:
+    async def _fill_email_confirmation_message(
+        self, msg: EmailMessage, ctx: Context
+    ) -> EmailMessage:
+        confirmation_token = token_urlsafe(self.CONFIRMATION_TOKEN_BYTES)
+        await ctx.redis.execute(
+            "SET",
+            f"confirmation:{confirmation_token}",
+            self._user_id,
+            "EX",
+            self.CONFIRMATION_TOKEN_TTL,
+        )
+
+        # hardcoded, probably bad
+        url = f"https://modbay.net/api/v0/auth/email/confirm/{confirmation_token}"
+
+        msg["Subject"] = "TODO: localized subject of: email confirmation"
+        msg.set_content(f"TODO: localized body of: email confirmation: {url}")
+
+        return msg
+
+    async def _fill_single_use_password_key_message(
+        self, msg: EmailMessage, ctx: Context
+    ) -> EmailMessage:
+        single_use_password = token_urlsafe(self.SINGLE_USE_PASSWORD_BYTES)
+        await ctx.redis.execute(
+            "SET",
+            f"single_use_password:{single_use_password}",
+            self._user_id,
+            "EX",
+            self.SINGLE_USE_PASSWORD_TTL,
+        )
+
+        msg["Subject"] = "TODO: localized subject of: single use password"
+        msg.set_content(
+            f"TODO: localized body of: single use password: {single_use_password}"
+        )
+
+        return msg
+
+    async def _fill_message(self, msg: EmailMessage, ctx: Context) -> EmailMessage:
         if self._email_type is EmailType.EMAIL_CONFIRMATION:
-            msg["Subject"] = "TODO: localized subject of: confirmation link"
-            msg.set_content(f"TODO: localized body of: confirmation link: {url}")
+            msg = await self._fill_email_confirmation_message(msg, ctx)
+        elif self._email_type is EmailType.SINGLE_USE_PASSWORD_EMAIL:
+            msg = await self._fill_single_use_password_key_message(msg, ctx)
 
         return msg
 
     async def run(self, ctx: Context) -> None:
-        confirmation_token = token_urlsafe(self.CONFIRMATION_TOKEN_BYTES)
-        await ctx.redis.execute(
-            "SET", confirmation_token, self._user_id, "EX", self.CONFIRMATION_TOKEN_TTL,
-        )
-
-        # hardcoded, probably bad
-        url = f"https://modbay.net/api/v0/auth/email/confirm?token={confirmation_token}"
         msg = EmailMessage()
 
         mail_config = ctx.config["mail"]
@@ -157,7 +194,7 @@ class SendLocalizedEmailJob(Job, job_type=JobType.SEND_LOCALIZED_EMAIL):
                 mail_config["login"], mail_config["password"],
             )
 
-            await server.send_message(self._fill_message(msg, url))
+            await server.send_message(await self._fill_message(msg, ctx))
 
 
 class PrintJob(Job, job_type=JobType.PRINT):
