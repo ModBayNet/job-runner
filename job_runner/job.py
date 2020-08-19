@@ -20,7 +20,7 @@ import enum
 import time
 import inspect
 
-from typing import Any, Dict, Type, Awaitable, Optional
+from typing import Any, Dict, Type, Optional, Awaitable
 from secrets import token_urlsafe
 from email.message import EmailMessage
 
@@ -50,7 +50,7 @@ class JobType(enum.Enum):
 
 class EmailType(enum.Enum):
     EMAIL_CONFIRMATION = 0
-    SINGLE_USE_PASSWORD_EMAIL = 1
+    PASSWORD_RECOVERY = 1
 
 
 class Job:
@@ -124,8 +124,8 @@ class SendLocalizedEmailJob(Job, job_type=JobType.SEND_LOCALIZED_EMAIL):
     CONFIRMATION_TOKEN_BYTES = 20
     CONFIRMATION_TOKEN_TTL = 5 * 24 * 60 * 60  # 5 days
 
-    SINGLE_USE_PASSWORD_BYTES = 15
-    SINGLE_USE_PASSWORD_TTL = 5 * 24 * 60 * 60  # 5 days
+    PASSWORD_RECOVERY_TOKEN_BYTES = 30
+    PASSWORD_RECOVERY_TOKEN_TTL = 3 * 24 * 60 * 60  # 3 days
 
     def set_data(  # type: ignore
         self, email_type: int, language: str, to: str, user_id: bytes, **kwargs: Any
@@ -140,7 +140,7 @@ class SendLocalizedEmailJob(Job, job_type=JobType.SEND_LOCALIZED_EMAIL):
         confirmation_token = token_urlsafe(self.CONFIRMATION_TOKEN_BYTES)
         await ctx.redis.execute(
             "SET",
-            f"confirmation:{confirmation_token}",
+            f"email_confirmation:{confirmation_token}",
             self._user_id,
             "EX",
             self.CONFIRMATION_TOKEN_TTL,
@@ -154,30 +154,31 @@ class SendLocalizedEmailJob(Job, job_type=JobType.SEND_LOCALIZED_EMAIL):
 
         return msg
 
-    async def _fill_single_use_password_key_message(
+    async def _fill_password_recovery_message(
         self, msg: EmailMessage, ctx: Context
     ) -> EmailMessage:
-        single_use_password = token_urlsafe(self.SINGLE_USE_PASSWORD_BYTES)
+        password_recovery_token = token_urlsafe(self.PASSWORD_RECOVERY_TOKEN_BYTES)
         await ctx.redis.execute(
             "SET",
-            f"single_use_password:{single_use_password}",
+            f"password_recovery:{password_recovery_token}",
             self._user_id,
             "EX",
-            self.SINGLE_USE_PASSWORD_TTL,
+            self.PASSWORD_RECOVERY_TOKEN_TTL,
         )
 
-        msg["Subject"] = "TODO: localized subject of: single use password"
-        msg.set_content(
-            f"TODO: localized body of: single use password: {single_use_password}"
-        )
+        # hardcoded, probably bad
+        url = f"https://modbay.net/auth/account/recover-password/{password_recovery_token}"
+
+        msg["Subject"] = "TODO: localized subject of: password recovery"
+        msg.set_content(f"TODO: localized body of: password recovery: {url}")
 
         return msg
 
     async def _fill_message(self, msg: EmailMessage, ctx: Context) -> EmailMessage:
         if self._email_type is EmailType.EMAIL_CONFIRMATION:
             msg = await self._fill_email_confirmation_message(msg, ctx)
-        elif self._email_type is EmailType.SINGLE_USE_PASSWORD_EMAIL:
-            msg = await self._fill_single_use_password_key_message(msg, ctx)
+        elif self._email_type is EmailType.PASSWORD_RECOVERY:
+            msg = await self._fill_password_recovery_message(msg, ctx)
 
         return msg
 
